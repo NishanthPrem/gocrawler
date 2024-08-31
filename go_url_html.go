@@ -9,37 +9,40 @@ import (
 )
 
 func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
-	base, err := url.Parse(rawBaseURL)
+	baseURL, err := url.Parse(rawBaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing url %w", err)
+		return nil, fmt.Errorf("couldn't parse base URL: %v", err)
 	}
 
 	htmlReader := strings.NewReader(htmlBody)
 	doc, err := html.Parse(htmlReader)
 	if err != nil {
-		return nil, fmt.Errorf("error reading html bodu %w", err)
+		return nil, fmt.Errorf("couldn't parse HTML: %v", err)
 	}
 
 	var urls []string
-	var traverse func(*html.Node)
-	traverse = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			for _, attr := range n.Attr {
-				if attr.Key == "href" {
-					u, err := url.Parse(attr.Val)
-					if err == nil {
-						resolved := base.ResolveReference(u)
-						urls = append(urls, resolved.String())
+	var traverseNodes func(*html.Node)
+	traverseNodes = func(node *html.Node) {
+		if node.Type == html.ElementNode && node.Data == "a" {
+			for _, anchor := range node.Attr {
+				if anchor.Key == "href" {
+					href, err := url.Parse(anchor.Val)
+					if err != nil {
+						fmt.Printf("couldn't parse href '%v': %v\n", anchor.Val, err)
+						continue
 					}
+
+					resolvedURL := baseURL.ResolveReference(href)
+					urls = append(urls, resolvedURL.String())
 				}
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			traverse(c)
+
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			traverseNodes(child)
 		}
 	}
+	traverseNodes(doc)
 
-	traverse(doc)
 	return urls, nil
-
 }

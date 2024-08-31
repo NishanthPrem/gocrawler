@@ -24,7 +24,7 @@ func main() {
 
 	crawlPage(rawBaseURL, rawBaseURL, pages)
 
-	for normalizeURL, count := range pages {
-		fmt.Printf("%d - $s\n", count, normalizeURL)
+	for normalizedURL, count := range pages {
+		fmt.Printf("%d - %s\n", count, normalizedURL)
 	}
 }
