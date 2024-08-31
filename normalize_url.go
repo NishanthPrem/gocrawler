@@ -1,4 +1,4 @@
-package normalizeurl
+package main
 
 import (
 	"fmt"

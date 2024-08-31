@@ -1,4 +1,4 @@
-package gourlhtml
+package main
 
 import (
 	"reflect"
