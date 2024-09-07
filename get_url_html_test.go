@@ -1,107 +1,130 @@
 package main
 
 import (
+	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 )
 
 func TestGetURLsFromHTML(t *testing.T) {
-	tests := []struct {
-		name      string
-		inputURL  string
-		inputBody string
-		expected  []string
-		expectErr bool
+	cases := []struct {
+		name          string
+		inputURL      string
+		inputBody     string
+		expected      []string
+		errorContains string
 	}{
+		{
+			name:     "absolute URL",
+			inputURL: "https://blog.boot.dev",
+			inputBody: `
+<html>
+	<body>
+		<a href="https://blog.boot.dev">
+			<span>Boot.dev</span>
+		</a>
+	</body>
+</html>
+`,
+			expected: []string{"https://blog.boot.dev"},
+		},
+		{
+			name:     "relative URL",
+			inputURL: "https://blog.boot.dev",
+			inputBody: `
+<html>
+	<body>
+		<a href="/path/one">
+			<span>Boot.dev</span>
+		</a>
+	</body>
+</html>
+`,
+			expected: []string{"https://blog.boot.dev/path/one"},
+		},
 		{
 			name:     "absolute and relative URLs",
 			inputURL: "https://blog.boot.dev",
 			inputBody: `
-                <html>
-                    <body>
-                        <a href="/path/one">
-                            <span>Boot.dev</span>
-                        </a>
-                        <a href="https://other.com/path/one">
-                            <span>Boot.dev</span>
-                        </a>
-                    </body>
-                </html>`,
-			expected:  []string{"https://blog.boot.dev/path/one", "https://other.com/path/one"},
-			expectErr: false,
+<html>
+	<body>
+		<a href="/path/one">
+			<span>Boot.dev</span>
+		</a>
+		<a href="https://other.com/path/one">
+			<span>Boot.dev</span>
+		</a>
+	</body>
+</html>
+`,
+			expected: []string{"https://blog.boot.dev/path/one", "https://other.com/path/one"},
 		},
 		{
-			name:     "no URLs in HTML",
-			inputURL: "https://example.com",
+			name:     "no href",
+			inputURL: "https://blog.boot.dev",
 			inputBody: `
-                <html>
-                    <body>
-                        <p>No links here!</p>
-                    </body>
-                </html>`,
-			expected:  []string{},
-			expectErr: false,
+<html>
+	<body>
+		<a>
+			<span>Boot.dev></span>
+		</a>
+	</body>
+</html>
+`,
+			expected: nil,
 		},
 		{
-			name:      "empty HTML body",
-			inputURL:  "https://example.com",
-			inputBody: "",
-			expected:  []string{},
-			expectErr: false,
-		},
-		{
-			name:     "relative URL only",
-			inputURL: "https://example.com",
+			name:     "bad HTML",
+			inputURL: "https://blog.boot.dev",
 			inputBody: `
-                <html>
-                    <body>
-                        <a href="/relative/path">
-                            <span>Relative Link</span>
-                        </a>
-                    </body>
-                </html>`,
-			expected:  []string{"https://example.com/relative/path"},
-			expectErr: false,
+<html body>
+	<a href="path/one">
+		<span>Boot.dev></span>
+	</a>
+</html body>
+`,
+			expected: []string{"https://blog.boot.dev/path/one"},
 		},
 		{
-			name:     "multiple relative URLs",
-			inputURL: "https://example.com",
+			name:     "invalid href URL",
+			inputURL: "https://blog.boot.dev",
 			inputBody: `
-                <html>
-                    <body>
-                        <a href="/path/one">Link One</a>
-                        <a href="/path/two">Link Two</a>
-                    </body>
-                </html>`,
-			expected: []string{
-				"https://example.com/path/one",
-				"https://example.com/path/two",
-			},
-			expectErr: false,
-		},
-		{
-			name:     "invalid URL in HTML",
-			inputURL: "https://example.com",
-			inputBody: `
-                <html>
-                    <body>
-                        <a href="http://%25">Invalid URL</a>
-                    </body>
-                </html>`,
-			expected:  []string{"http://%25"},
-			expectErr: false,
+<html>
+	<body>
+		<a href=":\\invalidURL">
+			<span>Boot.dev</span>
+		</a>
+	</body>
+</html>
+`,
+			expected: nil,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := getURLsFromHTML(tt.inputBody, tt.inputURL)
-			if (err != nil) != tt.expectErr {
-				t.Errorf("getURLsFromHTML() error = %v, expectErr %v", err, tt.expectErr)
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			baseURL, err := url.Parse(tc.inputURL)
+			if err != nil {
+				t.Errorf("Test %v - '%s' FAIL: couldn't parse input URL: %v", i, tc.name, err)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("getURLsFromHTML() = %v, expected %v", got, tt.expected)
+
+			actual, err := getURLsFromHTML(tc.inputBody, baseURL)
+			if err != nil && !strings.Contains(err.Error(), tc.errorContains) {
+				t.Errorf("Test %v - '%s' FAIL: unexpected error: %v", i, tc.name, err)
+				return
+			} else if err != nil && tc.errorContains == "" {
+				t.Errorf("Test %v - '%s' FAIL: unexpected error: %v", i, tc.name, err)
+				return
+			} else if err == nil && tc.errorContains != "" {
+				t.Errorf("Test %v - '%s' FAIL: expected error containing '%v', got none.", i, tc.name, tc.errorContains)
+				return
+			}
+
+			if !reflect.DeepEqual(actual, tc.expected) {
+				t.Errorf("Test %v - '%s' FAIL: expected URLs %v, got URLs %v", i, tc.name, tc.expected, actual)
+				return
 			}
 		})
 	}
