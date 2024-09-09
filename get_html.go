@@ -10,17 +10,15 @@ import (
 func getHTML(rawURL string) (string, error) {
 	res, err := http.Get(rawURL)
 	if err != nil {
-		return "", fmt.Errorf("error getting html %v", err)
+		return "", fmt.Errorf("got Network error: %v", err)
 	}
-
 	defer res.Body.Close()
 
 	if res.StatusCode > 399 {
-		return "", fmt.Errorf("got http error %s", res.Status)
+		return "", fmt.Errorf("got HTTP error: %s", res.Status)
 	}
 
 	contentType := res.Header.Get("Content-Type")
-
 	if !strings.Contains(contentType, "text/html") {
 		return "", fmt.Errorf("got non-HTML response: %s", contentType)
 	}
@@ -33,5 +31,4 @@ func getHTML(rawURL string) (string, error) {
 	htmlBody := string(htmlBodyBytes)
 
 	return htmlBody, nil
-
 }
