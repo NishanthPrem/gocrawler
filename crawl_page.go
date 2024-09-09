@@ -7,8 +7,11 @@ import (
 
 func (cfg *config) crawlPage(rawCurrentURL string) {
 
-	// To control the number of goroutines
+	if cfg.pagesLen() >= cfg.maxPages {
+		return
+	}
 
+	// To control the number of goroutines
 	cfg.concurrencyControl <- struct{}{}
 	defer func() {
 		<-cfg.concurrencyControl

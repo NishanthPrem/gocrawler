@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 func main() {
@@ -11,15 +12,28 @@ func main() {
 		return
 	}
 
-	if len(os.Args) > 2 {
+	if len(os.Args) > 4 {
 		fmt.Println("too many arguments provided")
 		return
 	}
 
 	rawBaseURL := os.Args[1]
+	inputMaxConcurrency := os.Args[2]
+	intputMaxPages := os.Args[3]
 
-	const maxConcurrency = 3
-	cfg, err := configure(rawBaseURL, maxConcurrency)
+	maxConcurrency, err := strconv.Atoi(inputMaxConcurrency)
+	if err != nil {
+		fmt.Printf("Invalid maxConcurrency value: %v\n", err)
+		return
+	}
+
+	maxPages, err := strconv.Atoi(intputMaxPages)
+	if err != nil {
+		fmt.Printf("Invalid maxPages value: %v\n", err)
+		return
+	}
+
+	cfg, err := configure(rawBaseURL, maxConcurrency, maxPages)
 	if err != nil {
 		fmt.Printf("error with configure %v", err)
 	}
